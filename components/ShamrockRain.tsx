@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 const SHAMROCKS = ["🍀", "☘️", "🌿", "✨"];
 
@@ -15,10 +15,8 @@ interface Particle {
 }
 
 export default function ShamrockRain() {
-  const [particles, setParticles] = useState<Particle[]>([]);
-
-  useEffect(() => {
-    const items: Particle[] = Array.from({ length: 18 }, (_, i) => ({
+  const [particles] = useState<Particle[]>(() =>
+    Array.from({ length: 18 }, (_, i) => ({
       id: i,
       left: Math.random() * 100,
       size: 12 + Math.random() * 20,
@@ -26,9 +24,8 @@ export default function ShamrockRain() {
       delay: Math.random() * 10,
       emoji: SHAMROCKS[Math.floor(Math.random() * SHAMROCKS.length)],
       opacity: 0.15 + Math.random() * 0.25,
-    }));
-    setParticles(items);
-  }, []);
+    }))
+  );
 
   return (
     <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">

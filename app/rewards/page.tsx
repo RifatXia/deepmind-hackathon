@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { loadGameState, saveGameState, type GameState } from "@/lib/game-state";
 import RewardCard from "@/components/RewardCard";
@@ -17,13 +17,7 @@ const REWARDS = [
 ];
 
 export default function RewardsPage() {
-  const [state, setState] = useState<GameState | null>(null);
-
-  useEffect(() => {
-    setState(loadGameState());
-  }, []);
-
-  if (!state) return null;
+  const [state, setState] = useState<GameState>(() => loadGameState());
 
   const handleRedeem = (rewardId: string, cost: number) => {
     const newState: GameState = {

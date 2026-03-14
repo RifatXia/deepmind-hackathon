@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { SPOTS } from "@/lib/spots";
+import type { Spot } from "@/lib/spots";
 import Link from "next/link";
 
 // Fix leaflet icon issue in Next.js
@@ -70,24 +70,11 @@ function UserLocationMarker() {
 }
 
 interface MapViewProps {
+  spots: Spot[];
   unlockedSpots: string[];
 }
 
-export default function MapView({ unlockedSpots }: MapViewProps) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
-    return (
-      <div className="w-full h-full bg-[#0a1a0a] flex items-center justify-center">
-        <div className="text-stpat-green/40 text-sm">Loading map...</div>
-      </div>
-    );
-  }
-
+export default function MapView({ spots, unlockedSpots }: MapViewProps) {
   return (
     <MapContainer
       center={[41.886, -87.62]}
@@ -101,7 +88,7 @@ export default function MapView({ unlockedSpots }: MapViewProps) {
         url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
       />
       <UserLocationMarker />
-      {SPOTS.map((spot) => {
+      {spots.map((spot) => {
         const unlocked = unlockedSpots.includes(spot.id);
         return (
           <Marker

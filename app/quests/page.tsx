@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { Sparkles, Loader2 } from "lucide-react";
 import { SPOTS } from "@/lib/spots";
 import { loadGameState, saveGameState, type GameState } from "@/lib/game-state";
 import { requestLocation, getDistanceMeters, metersToMiles } from "@/lib/geo";
@@ -10,15 +11,24 @@ import XPBar from "@/components/XPBar";
 import BottomNav from "@/components/BottomNav";
 import ShamrockRain from "@/components/ShamrockRain";
 import DemoToggle from "@/components/DemoToggle";
+import LuckyQuestCard from "@/components/LuckyQuestCard";
+import {
+  loadLuckyQuest,
+  saveLuckyQuest,
+  type LuckyQuestData,
+} from "@/lib/lucky-quest";
 
 export default function QuestsPage() {
   const [state, setState] = useState<GameState | null>(null);
   const [distances, setDistances] = useState<Record<string, string>>({});
+  const [luckyQuest, setLuckyQuest] = useState<LuckyQuestData | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState(false);
 
   useEffect(() => {
     setState(loadGameState());
+    setLuckyQuest(loadLuckyQuest());
 
-    // Get user location for distances
     requestLocation()
       .then((loc) => {
         const dists: Record<string, string> = {};
@@ -28,9 +38,7 @@ export default function QuestsPage() {
         }
         setDistances(dists);
       })
-      .catch(() => {
-        // No location access
-      });
+      .catch(() => {});
   }, []);
 
   if (!state) return null;
@@ -41,10 +49,54 @@ export default function QuestsPage() {
     saveGameState(newState);
   };
 
+  // ── Generate a new Lucky Quest via API ─────────────────────────────────────
+  const handleGenerate = async () => {
+    if (generating) return;
+    setGenerating(true);
+    setGenerateError(false);
+
+    try {
+      const res = await fetch("/api/generate-lucky-quest");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = (await res.json()) as Omit<LuckyQuestData, "completed">;
+
+      const quest: LuckyQuestData = { ...data, completed: false };
+      setLuckyQuest(quest);
+      saveLuckyQuest(quest);
+    } catch (err) {
+      console.error("Lucky Quest error:", err);
+      setGenerateError(true);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  // ── Complete a Lucky Quest ──────────────────────────────────────────────────
+  const handleComplete = (xp: number) => {
+    if (!luckyQuest || !state) return;
+
+    // Award XP to the main game state
+    const newGameState = { ...state, points: state.points + xp };
+    setState(newGameState);
+    saveGameState(newGameState);
+
+    // Mark quest as completed
+    const completedQuest: LuckyQuestData = { ...luckyQuest, completed: true };
+    setLuckyQuest(completedQuest);
+    saveLuckyQuest(completedQuest);
+  };
+
+  // ── Regenerate — clear old quest then generate fresh ───────────────────────
+  const handleRegenerate = () => {
+    setLuckyQuest(null);
+    handleGenerate();
+  };
+
   return (
-    <div className="min-h-screen bg-[#0a1a0a] pb-24">
+    <div className="min-h-screen bg-[#0a1a0a] pb-28">
       <ShamrockRain />
 
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
       <header className="relative z-10 px-4 pt-4 pb-2">
         <div className="flex items-center justify-between mb-3">
           <div>
@@ -67,6 +119,59 @@ export default function QuestsPage() {
         </motion.div>
       </header>
 
+      {/* ── Generate Lucky Quest button ─────────────────────────────────────── */}
+      <div className="relative z-10 px-4 mt-4">
+        <motion.button
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          onClick={handleGenerate}
+          disabled={generating}
+          whileTap={{ scale: 0.97 }}
+          className="w-full flex items-center justify-center gap-2.5 py-3.5 rounded-2xl
+            font-bold text-sm transition-opacity disabled:opacity-60"
+          style={{
+            background: "linear-gradient(135deg, #15803d 0%, #22c55e 60%, #16a34a 100%)",
+            boxShadow:
+              "0 4px 24px rgba(34,197,94,0.35), 0 0 0 1px rgba(34,197,94,0.2)",
+          }}
+        >
+          {generating ? (
+            <>
+              <Loader2 size={16} className="animate-spin text-white" />
+              <span className="text-white">Generating quest…</span>
+            </>
+          ) : (
+            <>
+              <motion.span
+                animate={{ rotate: [0, -15, 15, -10, 10, 0] }}
+                transition={{ repeat: Infinity, duration: 3.5, ease: "easeInOut" }}
+                className="text-lg leading-none"
+              >
+                🍀
+              </motion.span>
+              <span className="text-white">Generate Lucky Quest</span>
+              <Sparkles size={14} className="text-white/80" />
+            </>
+          )}
+        </motion.button>
+
+        {/* Error state */}
+        <AnimatePresence>
+          {generateError && (
+            <motion.p
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="text-center text-xs text-red-400/80 mt-2"
+            >
+              Something went wrong. Try again?
+            </motion.p>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* ── Quest list ──────────────────────────────────────────────────────── */}
       <div className="relative z-10 px-4 mt-4 space-y-3">
         {SPOTS.map((spot, i) => (
           <SpotCard
@@ -83,6 +188,53 @@ export default function QuestsPage() {
           />
         ))}
       </div>
+
+      {/* ── Lucky Quest card ────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {luckyQuest && (
+          <motion.div
+            key="lucky-quest-section"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="relative z-10 px-4 mt-4"
+          >
+            {/* Section label */}
+            <motion.div
+              initial={{ opacity: 0, x: -12 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.15 }}
+              className="flex items-center gap-2 mb-3"
+            >
+              <div
+                className="h-px flex-1"
+                style={{
+                  background:
+                    "linear-gradient(90deg, rgba(202,138,4,0.4), transparent)",
+                }}
+              />
+              <span className="text-[10px] font-bold text-stpat-gold/70 uppercase tracking-widest">
+                ✦ AI Mission ✦
+              </span>
+              <div
+                className="h-px flex-1"
+                style={{
+                  background:
+                    "linear-gradient(270deg, rgba(202,138,4,0.4), transparent)",
+                }}
+              />
+            </motion.div>
+
+            <LuckyQuestCard
+              quest={luckyQuest}
+              onComplete={handleComplete}
+              onRegenerate={handleRegenerate}
+              isRegenerating={generating}
+              demoMode={state.demoMode}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <BottomNav />
     </div>

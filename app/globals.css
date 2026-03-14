@@ -210,6 +210,61 @@
   color: #22c55e !important;
 }
 
+/* Custom marker base — remove Leaflet's default box */
+.chiquest-marker {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Pulse animation for selected marker */
+@keyframes marker-selected-glow {
+  0%, 100% {
+    box-shadow: 0 0 16px rgba(202,138,4,0.7), 0 0 32px rgba(202,138,4,0.3);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 28px rgba(202,138,4,1), 0 0 56px rgba(202,138,4,0.5);
+    transform: scale(1.08);
+  }
+}
+
+/* Glow animation for unlocked marker */
+@keyframes marker-unlocked-glow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(34,197,94,0.5), 0 0 20px rgba(34,197,94,0.2);
+  }
+  50% {
+    box-shadow: 0 0 18px rgba(34,197,94,0.8), 0 0 36px rgba(34,197,94,0.4);
+  }
+}
+
+/* User location pulse */
+@keyframes user-location-pulse {
+  0% { transform: scale(1); opacity: 0.8; }
+  70% { transform: scale(2.5); opacity: 0; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+.user-pulse-ring {
+  animation: user-location-pulse 2s ease-out infinite;
+}
+
+/* Leaflet popup overrides (for any remaining popups) */
+.leaflet-popup-content-wrapper {
+  background: #0f2b0f !important;
+  border: 1px solid rgba(34,197,94,0.3) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.7) !important;
+  color: #fefce8 !important;
+}
+.leaflet-popup-tip {
+  background: #0f2b0f !important;
+}
+.leaflet-popup-close-button {
+  color: #22c55e !important;
+}
+
 /* Tier colors */
 .tier-bronze {
   border-color: #cd7f32;

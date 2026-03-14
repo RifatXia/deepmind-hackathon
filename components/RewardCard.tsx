@@ -15,6 +15,14 @@ interface RewardCardProps {
   index: number;
 }
 
+function hashString(value: string): number {
+  let hash = 0;
+  for (const char of value) {
+    hash = (hash * 31 + char.charCodeAt(0)) % 9000;
+  }
+  return hash;
+}
+
 export default function RewardCard({
   emoji,
   name,
@@ -26,10 +34,11 @@ export default function RewardCard({
 }: RewardCardProps) {
   const [showVoucher, setShowVoucher] = useState(false);
   const canRedeem = userPoints >= pointsRequired && !redeemed;
+  const voucherSuffix = 1000 + hashString(`${name}-${pointsRequired}`);
   const voucherCode = `CHIQUEST-${name
     .split(" ")[0]
     .toUpperCase()
-    .slice(0, 4)}-${Math.floor(1000 + Math.random() * 9000)}`;
+    .slice(0, 4)}-${voucherSuffix}`;
 
   return (
     <motion.div

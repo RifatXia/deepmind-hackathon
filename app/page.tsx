@@ -1,11 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
-import { SPOTS } from "@/lib/spots";
-import { loadGameState, saveGameState, type GameState } from "@/lib/game-state";
+import {
+  loadGameState,
+  reconcileGameStateWithSpots,
+  saveGameState,
+  type GameState,
+} from "@/lib/game-state";
 import { getTierForPoints } from "@/lib/badges";
+import { useLandmarks } from "@/lib/use-landmarks";
 import XPBar from "@/components/XPBar";
 import BottomNav from "@/components/BottomNav";
 import ShamrockRain from "@/components/ShamrockRain";
@@ -21,33 +26,25 @@ const MapView = dynamic(() => import("@/components/MapView"), {
 });
 
 export default function HomePage() {
-  const [state, setState] = useState<GameState | null>(null);
+  const [state, setState] = useState<GameState>(() => loadGameState());
+  const { spots, loading, refreshing, error, refresh } = useLandmarks();
+  const effectiveState =
+    spots.length > 0 ? reconcileGameStateWithSpots(state, spots) : state;
 
   useEffect(() => {
-    setState(loadGameState());
-  }, []);
+    if (effectiveState !== state) {
+      saveGameState(effectiveState);
+    }
+  }, [effectiveState, state]);
 
-  if (!state) {
-    return (
-      <div className="min-h-screen bg-[#0a1a0a] flex items-center justify-center">
-        <motion.div
-          initial={{ scale: 0.5, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="text-center"
-        >
-          <div className="text-6xl mb-4">🍀</div>
-          <h1 className="text-2xl font-black text-stpat-shamrock">ChiQuest</h1>
-          <p className="text-xs text-stpat-green/40 mt-1">Loading...</p>
-        </motion.div>
-      </div>
-    );
-  }
-
-  const tier = getTierForPoints(state.points);
-  const spotsCollected = state.unlockedSpots.length;
+  const tier = getTierForPoints(effectiveState.points);
+  const spotsCollected = effectiveState.unlockedSpots.length;
 
   const toggleDemoMode = () => {
-    const newState = { ...state, demoMode: !state.demoMode };
+    const newState = {
+      ...effectiveState,
+      demoMode: !effectiveState.demoMode,
+    };
     setState(newState);
     saveGameState(newState);
   };
@@ -70,7 +67,21 @@ export default function HomePage() {
               </p>
             </div>
           </div>
-          <DemoToggle enabled={state.demoMode} onToggle={toggleDemoMode} />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                void refresh();
+              }}
+              disabled={refreshing}
+              className="h-8 px-2.5 rounded-lg border border-stpat-green/30 text-[10px] font-bold text-stpat-green/80 disabled:opacity-50"
+            >
+              {refreshing ? "Refreshing..." : "Refresh Landmarks"}
+            </button>
+            <DemoToggle
+              enabled={effectiveState.demoMode}
+              onToggle={toggleDemoMode}
+            />
+          </div>
         </div>
 
         <motion.div
@@ -78,7 +89,7 @@ export default function HomePage() {
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
         >
-          <XPBar points={state.points} />
+          <XPBar points={effectiveState.points} />
           <div className="flex items-center justify-between mt-3 pt-3 border-t border-stpat-green/10">
             <div className="flex items-center gap-1.5">
               <span className="text-lg">{tier.emoji}</span>
@@ -90,15 +101,40 @@ export default function HomePage() {
               <span className="font-bold text-stpat-shamrock">
                 {spotsCollected}
               </span>
-              <span>of {SPOTS.length} collected</span>
+              <span>of {spots.length} collected</span>
             </div>
           </div>
         </motion.div>
+        {error && (
+          <div className="mt-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-[11px] text-red-300">
+            {error}
+          </div>
+        )}
       </header>
 
       {/* Map */}
       <div className="flex-1 relative z-[1] min-h-[300px]">
-        <MapView unlockedSpots={state.unlockedSpots} />
+        {loading && spots.length === 0 ? (
+          <div className="w-full h-full bg-[#0a1a0a] flex items-center justify-center">
+            <div className="animate-pulse text-stpat-green/40">Loading landmarks...</div>
+          </div>
+        ) : spots.length === 0 ? (
+          <div className="w-full h-full bg-[#0a1a0a] flex items-center justify-center px-6 text-center">
+            <div>
+              <p className="text-stpat-cream text-sm">No landmarks available right now.</p>
+              <button
+                onClick={() => {
+                  void refresh();
+                }}
+                className="mt-3 h-9 px-3 rounded-lg border border-stpat-green/30 text-xs font-bold text-stpat-green"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        ) : (
+          <MapView spots={spots} unlockedSpots={effectiveState.unlockedSpots} />
+        )}
       </div>
 
       <BottomNav />

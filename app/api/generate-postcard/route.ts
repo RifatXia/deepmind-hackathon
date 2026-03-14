@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { getFallbackCaption } from "@/lib/gemini";
+import { getDefaultPrompt, getFallbackCaption } from "@/lib/gemini";
 
 export async function POST(req: Request) {
   let spotId = "unknown";
@@ -8,11 +8,20 @@ export async function POST(req: Request) {
     const body = await req.json();
     spotId = body.spotId;
     const prompt = body.prompt;
+  let payload: { spotId?: string; spotName?: string; prompt?: string } = {};
+
+  try {
+    payload = (await req.json()) as {
+      spotId?: string;
+      spotName?: string;
+      prompt?: string;
+    };
+    const prompt = payload.prompt || getDefaultPrompt(payload.spotName);
 
     if (!process.env.GEMINI_API_KEY) {
       return Response.json({
         imageBase64: null,
-        caption: getFallbackCaption(spotId),
+        caption: getFallbackCaption(payload.spotName),
       });
     }
 
@@ -44,7 +53,7 @@ export async function POST(req: Request) {
     }
 
     if (!caption) {
-      caption = getFallbackCaption(spotId);
+      caption = getFallbackCaption(payload.spotName);
     }
 
     return Response.json({ imageBase64, caption });
@@ -53,6 +62,10 @@ export async function POST(req: Request) {
     return Response.json({
       imageBase64: null,
       caption: getFallbackCaption(spotId),
+
+    return Response.json({
+      imageBase64: null,
+      caption: getFallbackCaption(payload.spotName),
     });
   }
 }

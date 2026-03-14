@@ -1,4 +1,4 @@
-import { SPOTS } from "@/lib/spots";
+import { CURATED_SPOTS } from "@/lib/spots";
 
 export const LUCKY_QUEST_KEY = "chiquest-lucky-quest";
 
@@ -32,7 +32,7 @@ export function clearLuckyQuest(): void {
 
 /**
  * Maps a free-text locationHint from the AI to real coordinates.
- * Tries to fuzzy-match against our 6 known SPOTS first.
+ * Tries to fuzzy-match against our known CURATED_SPOTS first.
  * Falls back to downtown Chicago with a generous 3 km radius.
  */
 export function findQuestTarget(locationHint: string): {
@@ -43,7 +43,7 @@ export function findQuestTarget(locationHint: string): {
 } {
   const hint = locationHint.toLowerCase();
 
-  const match = SPOTS.find((spot) => {
+  const match = CURATED_SPOTS.find((spot) => {
     const spotWords = spot.name
       .toLowerCase()
       .split(/\s+/)
@@ -58,12 +58,12 @@ export function findQuestTarget(locationHint: string): {
     return {
       lat: match.lat,
       lng: match.lng,
-      radius: 500, // more lenient than regular quests
+      radius: 500,
       name: match.name,
     };
   }
 
-  // Fallback: anywhere in Chicago's downtown loop (≤3 km from The Bean)
+  // Fallback: anywhere in Chicago's downtown loop
   return {
     lat: 41.8827,
     lng: -87.6233,

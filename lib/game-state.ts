@@ -5,7 +5,6 @@ export interface PostcardMeta {
   styleName?: string;
   hasImage: boolean;
 }
-import type { Spot } from "@/lib/spots";
 
 export interface GameState {
   version: number;
@@ -36,27 +35,25 @@ export function loadGameState(): GameState {
   if (typeof window === "undefined") return getDefaultState();
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_STATE;
-    const parsed = JSON.parse(raw);
+    if (!raw) return getDefaultState();
+
+    const parsed = JSON.parse(raw) as Partial<GameState>;
 
     // Migrate old format: if postcards have imageBase64, strip it out
     if (parsed.postcards) {
       for (const key of Object.keys(parsed.postcards)) {
-        const p = parsed.postcards[key];
+        const p = parsed.postcards[key] as unknown as Record<string, unknown>;
         if ("imageBase64" in p) {
           parsed.postcards[key] = {
-            caption: p.caption || "",
-            styleName: p.styleName,
+            caption: (p.caption as string) || "",
+            styleName: p.styleName as string | undefined,
             hasImage: !!p.imageBase64,
           };
         }
       }
     }
 
-    return { ...DEFAULT_STATE, ...parsed };
-    if (!raw) return getDefaultState();
-
-    const parsed = JSON.parse(raw) as Partial<GameState>;
+    // Reset if version mismatch
     if (parsed.version !== GAME_STATE_VERSION) {
       const resetState = getDefaultState();
       localStorage.setItem(STORAGE_KEY, JSON.stringify(resetState));
@@ -72,14 +69,13 @@ export function loadGameState(): GameState {
 export function saveGameState(state: GameState): void {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ ...state, version: GAME_STATE_VERSION })
+    );
   } catch (e) {
     console.error("Failed to save game state:", e);
   }
-  localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify({ ...state, version: GAME_STATE_VERSION })
-  );
 }
 
 export function resetGameState(): void {
@@ -89,7 +85,7 @@ export function resetGameState(): void {
 
 export function reconcileGameStateWithSpots(
   state: GameState,
-  spots: Spot[]
+  spots: { id: string }[]
 ): GameState {
   const validSpotIds = new Set(spots.map((spot) => spot.id));
   const unlockedSpots = state.unlockedSpots.filter((id) => validSpotIds.has(id));

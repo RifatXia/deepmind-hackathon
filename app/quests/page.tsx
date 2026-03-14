@@ -3,9 +3,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Loader2 } from "lucide-react";
-import { SPOTS } from "@/lib/spots";
-import { loadGameState, saveGameState, type GameState } from "@/lib/game-state";
-import { motion } from "framer-motion";
 import {
   loadGameState,
   reconcileGameStateWithSpots,
@@ -33,13 +30,13 @@ export default function QuestsPage() {
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState(false);
 
-  useEffect(() => {
-    setState(loadGameState());
-    setLuckyQuest(loadLuckyQuest());
-
   const { spots, loading, refreshing, error, refresh } = useLandmarks();
   const effectiveState =
     spots.length > 0 ? reconcileGameStateWithSpots(state, spots) : state;
+
+  useEffect(() => {
+    setLuckyQuest(loadLuckyQuest());
+  }, []);
 
   useEffect(() => {
     if (spots.length === 0) return;
@@ -52,8 +49,6 @@ export default function QuestsPage() {
         }
         setDistances(dists);
       })
-      .catch(() => {});
-  }, []);
       .catch(() => {
         // No location access
       });
@@ -74,7 +69,6 @@ export default function QuestsPage() {
     saveGameState(newState);
   };
 
-  // ── Generate a new Lucky Quest via API ─────────────────────────────────────
   const handleGenerate = async () => {
     if (generating) return;
     setGenerating(true);
@@ -96,22 +90,18 @@ export default function QuestsPage() {
     }
   };
 
-  // ── Complete a Lucky Quest ──────────────────────────────────────────────────
   const handleComplete = (xp: number) => {
-    if (!luckyQuest || !state) return;
+    if (!luckyQuest) return;
 
-    // Award XP to the main game state
-    const newGameState = { ...state, points: state.points + xp };
+    const newGameState = { ...effectiveState, points: effectiveState.points + xp };
     setState(newGameState);
     saveGameState(newGameState);
 
-    // Mark quest as completed
     const completedQuest: LuckyQuestData = { ...luckyQuest, completed: true };
     setLuckyQuest(completedQuest);
     saveLuckyQuest(completedQuest);
   };
 
-  // ── Regenerate — clear old quest then generate fresh ───────────────────────
   const handleRegenerate = () => {
     setLuckyQuest(null);
     handleGenerate();
@@ -121,7 +111,6 @@ export default function QuestsPage() {
     <div className="min-h-screen bg-[#0a1a0a] pb-28">
       <ShamrockRain />
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
       <header className="relative z-10 px-4 pt-4 pb-2">
         <div className="flex items-center justify-between mb-3">
           <div>
@@ -140,7 +129,7 @@ export default function QuestsPage() {
               disabled={refreshing}
               className="h-8 px-2.5 rounded-lg border border-stpat-green/30 text-[10px] font-bold text-stpat-green/80 disabled:opacity-50"
             >
-              {refreshing ? "Refreshing..." : "Refresh Landmarks"}
+              {refreshing ? "Refreshing..." : "Refresh"}
             </button>
             <DemoToggle
               enabled={effectiveState.demoMode}
@@ -158,7 +147,7 @@ export default function QuestsPage() {
         </motion.div>
       </header>
 
-      {/* ── Generate Lucky Quest button ─────────────────────────────────────── */}
+      {/* Generate Lucky Quest button */}
       <div className="relative z-10 px-4 mt-4">
         <motion.button
           initial={{ opacity: 0, y: -8 }}
@@ -195,7 +184,6 @@ export default function QuestsPage() {
           )}
         </motion.button>
 
-        {/* Error state */}
         <AnimatePresence>
           {generateError && (
             <motion.p
@@ -210,7 +198,7 @@ export default function QuestsPage() {
         </AnimatePresence>
       </div>
 
-      {/* ── Quest list ──────────────────────────────────────────────────────── */}
+      {/* Quest list */}
       <div className="relative z-10 px-4 mt-4 space-y-3">
         {error && (
           <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
@@ -251,7 +239,7 @@ export default function QuestsPage() {
         )}
       </div>
 
-      {/* ── Lucky Quest card ────────────────────────────────────────────────── */}
+      {/* Lucky Quest card */}
       <AnimatePresence>
         {luckyQuest && (
           <motion.div
@@ -261,7 +249,6 @@ export default function QuestsPage() {
             exit={{ opacity: 0 }}
             className="relative z-10 px-4 mt-4"
           >
-            {/* Section label */}
             <motion.div
               initial={{ opacity: 0, x: -12 }}
               animate={{ opacity: 1, x: 0 }}
@@ -292,7 +279,7 @@ export default function QuestsPage() {
               onComplete={handleComplete}
               onRegenerate={handleRegenerate}
               isRegenerating={generating}
-              demoMode={state.demoMode}
+              demoMode={effectiveState.demoMode}
             />
           </motion.div>
         )}

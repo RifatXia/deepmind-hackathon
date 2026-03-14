@@ -80,7 +80,6 @@ export default function SpotPage({
         if (img) setHeroImage(img);
       });
     } else {
-      setPostcard(null);
       setPhase("idle");
     }
   }, [id]);
@@ -150,9 +149,6 @@ export default function SpotPage({
     if (!spot || !state) return;
     setSelectedStyle(style);
     setPhase("generating");
-      // Generate postcard
-      setPhase("generating");
-      const prompt = spot.geminiPrompt;
 
     try {
       const res = await fetch("/api/style-transfer", {
@@ -164,7 +160,6 @@ export default function SpotPage({
           styleId: style.id,
           userImageBase64: userPhoto,
         }),
-        body: JSON.stringify({ spotId: spot.id, spotName: spot.name, prompt }),
       });
 
       const data = await res.json();
@@ -214,7 +209,6 @@ export default function SpotPage({
     } catch (err) {
       console.error(err);
       setErrorMsg("Failed to generate souvenir. Please try again.");
-      setErrorMsg("Could not unlock this landmark right now. Try again.");
       setPhase("error");
     }
   };
@@ -290,7 +284,6 @@ export default function SpotPage({
     input.click();
   };
 
-  if (!spot || !state) {
   if (!state) {
     return (
       <div className="min-h-screen bg-[#0a1a0a] flex items-center justify-center">

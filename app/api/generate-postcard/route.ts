@@ -2,12 +2,6 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getDefaultPrompt, getFallbackCaption } from "@/lib/gemini";
 
 export async function POST(req: Request) {
-  let spotId = "unknown";
-
-  try {
-    const body = await req.json();
-    spotId = body.spotId;
-    const prompt = body.prompt;
   let payload: { spotId?: string; spotName?: string; prompt?: string } = {};
 
   try {
@@ -59,10 +53,6 @@ export async function POST(req: Request) {
     return Response.json({ imageBase64, caption });
   } catch (error) {
     console.error("Gemini API error:", error);
-    return Response.json({
-      imageBase64: null,
-      caption: getFallbackCaption(spotId),
-
     return Response.json({
       imageBase64: null,
       caption: getFallbackCaption(payload.spotName),

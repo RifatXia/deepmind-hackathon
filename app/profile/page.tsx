@@ -6,7 +6,8 @@ import { Download, Share2, Trash2, X, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { loadGameState, saveGameState, resetGameState, type GameState } from "@/lib/game-state";
 import { loadAllImages, clearAllImages } from "@/lib/image-store";
-import { getSpotById } from "@/lib/spots";
+import { useLandmarks } from "@/lib/use-landmarks";
+import type { Spot } from "@/lib/spots";
 import { getTierForPoints, getNextTier, TIERS } from "@/lib/badges";
 import XPBar from "@/components/XPBar";
 import BottomNav from "@/components/BottomNav";
@@ -28,6 +29,11 @@ export default function ProfilePage() {
   const [lightboxImage, setLightboxImage] = useState<GalleryItem | null>(null);
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
+  const { spots } = useLandmarks();
+
+  // Build a lookup map from spot id -> Spot
+  const spotMap = new Map<string, Spot>();
+  for (const s of spots) spotMap.set(s.id, s);
 
   useEffect(() => {
     const gs = loadGameState();
@@ -39,17 +45,27 @@ export default function ProfilePage() {
       const items: GalleryItem[] = [];
       for (const [key, imageBase64] of Object.entries(images)) {
         // key is either "spotId" or "spotId-styleId"
-        const spotId = key.split("-")[0];
-        // Try with full key first for hyphenated spot IDs
-        let spot = getSpotById(key);
-        if (!spot) spot = getSpotById(spotId);
+        // For OSM-based IDs like "osm-node-123", we need to find the matching spot
+        let spot: Spot | undefined;
+        // Try full key match first
+        spot = spotMap.get(key);
+        if (!spot) {
+          // Try matching by checking if key starts with a known spot id
+          for (const [sid, s] of spotMap) {
+            if (key === sid || key.startsWith(sid + "-")) {
+              spot = s;
+              break;
+            }
+          }
+        }
+        const spotId = spot?.id || key;
         // Check postcards metadata
         const meta = gs.postcards[spotId] || gs.postcards[key];
 
         items.push({
           key,
-          spotId: spot?.id || spotId,
-          spotName: spot?.name || spotId,
+          spotId: spot?.id || key,
+          spotName: spot?.name || key,
           spotEmoji: spot?.emoji || "📍",
           imageBase64,
           caption: meta?.caption || "Chicago souvenir 🍀",
@@ -58,7 +74,7 @@ export default function ProfilePage() {
       }
       setGallery(items);
     });
-  }, []);
+  }, [spots]);
 
   if (!state) return null;
 
@@ -153,7 +169,7 @@ export default function ProfilePage() {
               <p className="text-[10px] text-stpat-green/40">Total XP</p>
             </div>
             <div className="rounded-xl bg-[#0a1a0a]/50 p-3 text-center">
-              <p className="text-lg font-black text-stpat-shamrock">{state.unlockedSpots.length}/6</p>
+              <p className="text-lg font-black text-stpat-shamrock">{state.unlockedSpots.length}/{spots.length || 12}</p>
               <p className="text-[10px] text-stpat-green/40">Spots</p>
             </div>
             <div className="rounded-xl bg-[#0a1a0a]/50 p-3 text-center">
@@ -168,7 +184,7 @@ export default function ProfilePage() {
               <p className="text-[10px] text-stpat-green/40 uppercase tracking-wider mb-2">Badges Collected</p>
               <div className="flex flex-wrap gap-2">
                 {state.unlockedSpots.map((spotId) => {
-                  const spot = getSpotById(spotId);
+                  const spot = spotMap.get(spotId);
                   if (!spot) return null;
                   return (
                     <motion.div key={spotId} initial={{ scale: 0 }} animate={{ scale: 1 }}

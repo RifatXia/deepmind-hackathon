@@ -4,6 +4,18 @@
 
 A gamified PWA where tourists explore 12 iconic Chicago landmarks, take photos, get AI-generated art souvenirs powered by **Google Gemini**, earn XP, and collect badges.
 
+## Live Demo
+
+**[https://deepmind-hackathon-psi.vercel.app/](https://deepmind-hackathon-psi.vercel.app/)**
+
+Scan to open on your phone:
+
+<p align="center">
+  <img src="public/qr-code.png" alt="QR Code" width="200" />
+</p>
+
+> Enable **Demo Mode** (toggle in the header) to simulate visits without being at the actual locations.
+
 ## Quick Start
 
 ```bash

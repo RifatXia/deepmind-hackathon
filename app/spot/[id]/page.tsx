@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, use } from "react";
-import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
 import {
@@ -12,10 +11,14 @@ import {
   Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getSpotById, type Spot } from "@/lib/spots";
-import { loadGameState, saveGameState, type GameState } from "@/lib/game-state";
+import {
+  loadGameState,
+  reconcileGameStateWithSpots,
+  saveGameState,
+  type GameState,
+} from "@/lib/game-state";
 import { requestLocation, getDistanceMeters } from "@/lib/geo";
-import { getSpotPrompt } from "@/lib/gemini";
+import { useLandmarks } from "@/lib/use-landmarks";
 import BadgeModal from "@/components/BadgeModal";
 import PostcardDisplay from "@/components/PostcardDisplay";
 import ShamrockRain from "@/components/ShamrockRain";
@@ -35,8 +38,8 @@ export default function SpotPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const router = useRouter();
-  const [spot, setSpot] = useState<Spot | null>(null);
+  const { spots, loading, error, refresh, refreshing } = useLandmarks();
+  const spot = spots.find((candidate) => candidate.id === id) || null;
   const [state, setState] = useState<GameState | null>(null);
   const [phase, setPhase] = useState<UnlockPhase>("idle");
   const [distanceMsg, setDistanceMsg] = useState<string>("");
@@ -48,21 +51,30 @@ export default function SpotPage({
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
-    const s = getSpotById(id);
-    if (!s) {
-      router.push("/");
-      return;
-    }
-    setSpot(s);
     const gs = loadGameState();
     setState(gs);
+    setDistanceMsg("");
+    setErrorMsg("");
+    setShowBadge(false);
 
     // Load existing postcard if already unlocked
     if (gs.postcards[id]) {
       setPostcard(gs.postcards[id]);
       setPhase("done");
+    } else {
+      setPostcard(null);
+      setPhase("idle");
     }
-  }, [id, router]);
+  }, [id]);
+
+  useEffect(() => {
+    if (!state || spots.length === 0) return;
+    const reconciled = reconcileGameStateWithSpots(state, spots);
+    if (reconciled !== state) {
+      setState(reconciled);
+      saveGameState(reconciled);
+    }
+  }, [state, spots]);
 
   const fireConfetti = useCallback(() => {
     confetti({
@@ -103,20 +115,27 @@ export default function SpotPage({
 
       // Generate postcard
       setPhase("generating");
-      const prompt = getSpotPrompt(spot.id);
+      const prompt = spot.geminiPrompt;
 
       const res = await fetch("/api/generate-postcard", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ spotId: spot.id, prompt }),
+        body: JSON.stringify({ spotId: spot.id, spotName: spot.name, prompt }),
       });
       const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to generate postcard.");
+      }
+
+      const alreadyUnlocked = state.unlockedSpots.includes(spot.id);
 
       // Save to state
       const newState: GameState = {
         ...state,
-        points: state.points + spot.points,
-        unlockedSpots: [...state.unlockedSpots, spot.id],
+        points: alreadyUnlocked ? state.points : state.points + spot.points,
+        unlockedSpots: alreadyUnlocked
+          ? state.unlockedSpots
+          : [...state.unlockedSpots, spot.id],
         postcards: {
           ...state.postcards,
           [spot.id]: { imageBase64: data.imageBase64, caption: data.caption },
@@ -137,15 +156,59 @@ export default function SpotPage({
       }, 1500);
     } catch (err) {
       console.error(err);
-      setErrorMsg("Could not verify location. Try Demo mode!");
+      setErrorMsg("Could not unlock this landmark right now. Try again.");
       setPhase("error");
     }
   };
 
-  if (!spot || !state) {
+  if (!state) {
     return (
       <div className="min-h-screen bg-[#0a1a0a] flex items-center justify-center">
         <Loader2 className="animate-spin text-stpat-green" size={32} />
+      </div>
+    );
+  }
+
+  if (loading && spots.length === 0) {
+    return (
+      <div className="min-h-screen bg-[#0a1a0a] flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="animate-spin text-stpat-green mx-auto" size={32} />
+          <p className="text-xs text-stpat-green/50 mt-2">
+            Loading Chicago landmarks...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!spot) {
+    return (
+      <div className="min-h-screen bg-[#0a1a0a] px-4 py-8">
+        <ShamrockRain />
+        <div className="max-w-md mx-auto rounded-2xl border border-stpat-green/20 bg-[#0f2b0f] p-5 text-center space-y-3">
+          <h1 className="text-lg font-black text-stpat-cream">Landmark unavailable</h1>
+          <p className="text-sm text-stpat-green/60">
+            {error || "This landmark is not in the current Chicago list."}
+          </p>
+          <div className="flex items-center justify-center gap-2">
+            <button
+              onClick={() => {
+                void refresh();
+              }}
+              disabled={refreshing}
+              className="h-9 px-3 rounded-lg border border-stpat-green/30 text-xs font-bold text-stpat-green disabled:opacity-50"
+            >
+              {refreshing ? "Refreshing..." : "Retry Landmarks"}
+            </button>
+            <Link
+              href="/quests"
+              className="h-9 px-3 rounded-lg border border-stpat-gold/30 text-xs font-bold text-stpat-gold inline-flex items-center"
+            >
+              Back to Quests
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }

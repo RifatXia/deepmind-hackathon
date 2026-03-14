@@ -1,26 +1,13 @@
-import { SPOTS } from "./spots";
-
-const FALLBACK_CAPTIONS: Record<string, string> = {
-  bean: "You stood beneath the silver orb — Chicago salutes you! 🫘🍀",
-  riverwalk:
-    "You walked the green river — a St. Pat's legend is born! 🌊☘️",
-  "wrigley-field":
-    "Wrigley's brick walls whispered your name. Cubs fan forever! ⚾🍀",
-  "navy-pier": "The Ferris wheel spun just for you, explorer! 🎡✨",
-  "willis-tower": "You touched the sky. Chicago is yours. 🏙️👑",
-  "art-institute": "Culture unlocked. The lions bow to thee! 🎨🦁",
-};
-
-export function getFallbackCaption(spotId: string): string {
-  return (
-    FALLBACK_CAPTIONS[spotId] || "Chicago welcomes its newest legend! 🍀"
-  );
+export function getFallbackCaption(spotName?: string): string {
+  if (spotName && spotName.trim().length > 0) {
+    return `You explored ${spotName} and unlocked another Chicago adventure! 🍀`;
+  }
+  return "Chicago welcomes its newest legend! 🍀";
 }
 
-export function getSpotPrompt(spotId: string): string {
-  const spot = SPOTS.find((s) => s.id === spotId);
-  return spot
-    ? spot.geminiPrompt +
-        " High quality, festive, shareable postcard format. 1:1 ratio."
-    : "A beautiful St. Patrick's Day postcard of Chicago. Festive, green, vibrant.";
+export function getDefaultPrompt(spotName?: string): string {
+  if (spotName && spotName.trim().length > 0) {
+    return `Create a festive St. Patrick's Day postcard of ${spotName} in Chicago. Keep it vibrant, celebratory, and postcard-friendly.`;
+  }
+  return "Create a beautiful St. Patrick's Day postcard of Chicago with festive green energy and a travel postcard look.";
 }

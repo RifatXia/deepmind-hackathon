@@ -70,6 +70,8 @@ function createSpotIcon(
       background:#7c4a00;border-radius:50%;border:1.5px solid rgba(200,130,40,0.8);
       display:flex;align-items:center;justify-content:center;font-size:8px;">🔒</div>`;
   }
+import type { Spot } from "@/lib/spots";
+import Link from "next/link";
 
   return L.divIcon({
     html: `<div style="${containerStyle}">${emoji}${badgeHtml}</div>`,
@@ -178,6 +180,7 @@ function MapController({
 // ─── Main MapView component ────────────────────────────────────────────────────
 
 interface MapViewProps {
+  spots: Spot[];
   unlockedSpots: string[];
   userLocation: [number, number] | null;
   selectedSpotId: string | null;
@@ -215,6 +218,7 @@ export default function MapView({
     );
   }
 
+export default function MapView({ spots, unlockedSpots }: MapViewProps) {
   return (
     <MapContainer
       center={[41.886, -87.62]}
@@ -250,6 +254,9 @@ export default function MapView({
           ? "unlocked"
           : "locked";
 
+      <UserLocationMarker />
+      {spots.map((spot) => {
+        const unlocked = unlockedSpots.includes(spot.id);
         return (
           <Marker
             key={spot.id}

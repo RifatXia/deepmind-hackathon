@@ -8,6 +8,18 @@ import { SPOTS } from "@/lib/spots";
 import { loadGameState, saveGameState, type GameState } from "@/lib/game-state";
 import { getTierForPoints, getNextTier, getProgressToNextTier } from "@/lib/badges";
 import { getDistanceMeters } from "@/lib/geo";
+import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+import { motion } from "framer-motion";
+import {
+  loadGameState,
+  reconcileGameStateWithSpots,
+  saveGameState,
+  type GameState,
+} from "@/lib/game-state";
+import { getTierForPoints } from "@/lib/badges";
+import { useLandmarks } from "@/lib/use-landmarks";
+import XPBar from "@/components/XPBar";
 import BottomNav from "@/components/BottomNav";
 import ShamrockRain from "@/components/ShamrockRain";
 import DemoToggle from "@/components/DemoToggle";
@@ -45,10 +57,16 @@ export default function HomePage() {
   const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
   const [recenterTrigger, setRecenterTrigger] = useState(0);
   const [showLuckyModal, setShowLuckyModal] = useState(false);
+  const [state, setState] = useState<GameState>(() => loadGameState());
+  const { spots, loading, refreshing, error, refresh } = useLandmarks();
+  const effectiveState =
+    spots.length > 0 ? reconcileGameStateWithSpots(state, spots) : state;
 
   useEffect(() => {
-    setState(loadGameState());
-  }, []);
+    if (effectiveState !== state) {
+      saveGameState(effectiveState);
+    }
+  }, [effectiveState, state]);
 
   // Stable callback so MapView doesn't remount on every location update
   const handleLocationUpdate = useCallback(
@@ -70,6 +88,14 @@ export default function HomePage() {
   const toggleDemoMode = () => {
     if (!state) return;
     const newState = { ...state, demoMode: !state.demoMode };
+  const tier = getTierForPoints(effectiveState.points);
+  const spotsCollected = effectiveState.unlockedSpots.length;
+
+  const toggleDemoMode = () => {
+    const newState = {
+      ...effectiveState,
+      demoMode: !effectiveState.demoMode,
+    };
     setState(newState);
     saveGameState(newState);
   };
@@ -176,6 +202,20 @@ export default function HomePage() {
             </AnimatePresence>
 
             <DemoToggle enabled={state.demoMode} onToggle={toggleDemoMode} />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                void refresh();
+              }}
+              disabled={refreshing}
+              className="h-8 px-2.5 rounded-lg border border-stpat-green/30 text-[10px] font-bold text-stpat-green/80 disabled:opacity-50"
+            >
+              {refreshing ? "Refreshing..." : "Refresh Landmarks"}
+            </button>
+            <DemoToggle
+              enabled={effectiveState.demoMode}
+              onToggle={toggleDemoMode}
+            />
           </div>
         </div>
 
@@ -339,6 +379,52 @@ export default function HomePage() {
           unlocked={selectedSpot ? state.unlockedSpots.includes(selectedSpot.id) : false}
           onClose={() => setSelectedSpotId(null)}
         />
+          <XPBar points={effectiveState.points} />
+          <div className="flex items-center justify-between mt-3 pt-3 border-t border-stpat-green/10">
+            <div className="flex items-center gap-1.5">
+              <span className="text-lg">{tier.emoji}</span>
+              <span className="text-xs font-bold text-stpat-cream">
+                {tier.name}
+              </span>
+            </div>
+            <div className="flex items-center gap-1 text-xs text-stpat-green/60">
+              <span className="font-bold text-stpat-shamrock">
+                {spotsCollected}
+              </span>
+              <span>of {spots.length} collected</span>
+            </div>
+          </div>
+        </motion.div>
+        {error && (
+          <div className="mt-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-[11px] text-red-300">
+            {error}
+          </div>
+        )}
+      </header>
+
+      {/* Map */}
+      <div className="flex-1 relative z-[1] min-h-[300px]">
+        {loading && spots.length === 0 ? (
+          <div className="w-full h-full bg-[#0a1a0a] flex items-center justify-center">
+            <div className="animate-pulse text-stpat-green/40">Loading landmarks...</div>
+          </div>
+        ) : spots.length === 0 ? (
+          <div className="w-full h-full bg-[#0a1a0a] flex items-center justify-center px-6 text-center">
+            <div>
+              <p className="text-stpat-cream text-sm">No landmarks available right now.</p>
+              <button
+                onClick={() => {
+                  void refresh();
+                }}
+                className="mt-3 h-9 px-3 rounded-lg border border-stpat-green/30 text-xs font-bold text-stpat-green"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        ) : (
+          <MapView spots={spots} unlockedSpots={effectiveState.unlockedSpots} />
+        )}
       </div>
 
       {/* Bottom nav spacer (nav is fixed) */}

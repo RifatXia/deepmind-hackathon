@@ -1,23 +1,34 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { getFallbackCaption } from "@/lib/gemini";
+import { getDefaultPrompt, getFallbackCaption } from "@/lib/gemini";
 
 export async function POST(req: Request) {
+  let spotId = "unknown";
+
   try {
-    const { spotId, prompt } = await req.json();
+    const body = await req.json();
+    spotId = body.spotId;
+    const prompt = body.prompt;
+  let payload: { spotId?: string; spotName?: string; prompt?: string } = {};
+
+  try {
+    payload = (await req.json()) as {
+      spotId?: string;
+      spotName?: string;
+      prompt?: string;
+    };
+    const prompt = payload.prompt || getDefaultPrompt(payload.spotName);
 
     if (!process.env.GEMINI_API_KEY) {
-      // Return fallback when no API key
       return Response.json({
         imageBase64: null,
-        caption: getFallbackCaption(spotId),
+        caption: getFallbackCaption(payload.spotName),
       });
     }
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-    // Try gemini-2.0-flash-exp for image generation
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash-exp",
+      model: "gemini-2.5-flash-image",
       generationConfig: {
         responseModalities: ["Text", "Image"],
       } as never,
@@ -42,25 +53,19 @@ export async function POST(req: Request) {
     }
 
     if (!caption) {
-      caption = getFallbackCaption(spotId);
+      caption = getFallbackCaption(payload.spotName);
     }
 
     return Response.json({ imageBase64, caption });
   } catch (error) {
     console.error("Gemini API error:", error);
+    return Response.json({
+      imageBase64: null,
+      caption: getFallbackCaption(spotId),
 
-    // Fallback: try text-only generation
-    try {
-      const { spotId } = await req.json().catch(() => ({ spotId: "unknown" }));
-      return Response.json({
-        imageBase64: null,
-        caption: getFallbackCaption(spotId),
-      });
-    } catch {
-      return Response.json({
-        imageBase64: null,
-        caption: "Chicago welcomes its newest legend! 🍀",
-      });
-    }
+    return Response.json({
+      imageBase64: null,
+      caption: getFallbackCaption(payload.spotName),
+    });
   }
 }

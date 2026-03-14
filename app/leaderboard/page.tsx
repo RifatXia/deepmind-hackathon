@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { loadGameState, type GameState } from "@/lib/game-state";
 import { getTierForPoints } from "@/lib/badges";
@@ -22,13 +22,7 @@ const MOCK_PLAYERS = [
 const RANK_BADGES = ["🥇", "🥈", "🥉"];
 
 export default function LeaderboardPage() {
-  const [state, setState] = useState<GameState | null>(null);
-
-  useEffect(() => {
-    setState(loadGameState());
-  }, []);
-
-  if (!state) return null;
+  const [state] = useState<GameState>(() => loadGameState());
 
   // Insert current user into mock leaderboard
   const currentUser = {

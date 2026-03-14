@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Map, Trophy, Gift, Compass } from "lucide-react";
+import { Map, Trophy, Gift, Compass, User } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/", label: "Map", icon: Map },
   { href: "/quests", label: "Quests", icon: Compass },
   { href: "/rewards", label: "Rewards", icon: Gift },
   { href: "/leaderboard", label: "Board", icon: Trophy },
+  { href: "/profile", label: "Profile", icon: User },
 ];
 
 export default function BottomNav() {

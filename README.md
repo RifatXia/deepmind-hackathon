@@ -98,7 +98,6 @@ Then import at https://vercel.com/new
 ## Project Structure
 
 ```
-chiquest/
 ├── app/
 │   ├── page.tsx              # Map home screen
 │   ├── quests/page.tsx       # Quest list
